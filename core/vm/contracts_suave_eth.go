@@ -145,6 +145,45 @@ func (b *suaveRuntime) buildEthBlock(blockArgs types.BuildBlockArgs, dataID type
 	var mergedBundles []types.SBundle
 	for _, record := range recordsToMerge {
 		switch record.Version {
+		case "mevcompose:v0:matchMetaBundles":
+			log.Info("Started processing matchMetaBundles.", "record", record)
+			matchedBundleIdsBytes, err := b.suaveContext.Backend.ConfidentialStore.Retrieve(
+				record.Id, buildEthBlockAddr, "mevcompose:v0:mergedDataRecords")
+			if err != nil {
+				return nil, nil, fmt.Errorf("could not retrieve record ids data for record %v, from cdas: %w", record, err)
+			}
+			unpackeddataIDs, err := dataIDsAbi.Inputs.Unpack(matchedBundleIdsBytes)
+			matchdataIDs := unpackeddataIDs[0].([][16]byte)
+
+			log.Info("Retrieved dataids", "matchdataIDs", matchdataIDs)
+
+			for _, matchdataID := range matchdataIDs {
+				bundleBytes, err := b.suaveContext.Backend.ConfidentialStore.Retrieve(
+					matchdataID, buildEthBlockAddr, "mevcompose:v0:ethBundles")
+				if err != nil {
+					return nil, nil, fmt.Errorf("could not retrieve bundle data for dataID %v, from cdas: %w", matchdataID, err)
+				}
+
+				var bundle types.SBundle
+				if err := json.Unmarshal(bundleBytes, &bundle); err != nil {
+					return nil, nil, fmt.Errorf("could not unmarshal bundle data for dataID %v, from cdas: %w", matchdataID, err)
+				}
+				mergedBundles = append(mergedBundles, bundle)
+			}
+
+			paymentBundleBytes, err := b.suaveContext.Backend.ConfidentialStore.Retrieve(record.Id, buildEthBlockAddr,
+				"mevcompose:v0:paymentBundles")
+			if err != nil {
+				return nil, nil, fmt.Errorf("could not retrieve payment bundle data for dataID %v, from cdas: %w", record.Id, err)
+			}
+
+			var paymentBundle types.SBundle
+			if err := json.Unmarshal(paymentBundleBytes, &paymentBundle); err != nil {
+				return nil, nil, fmt.Errorf("could not unmarshal payment bundle data for dataID %v, from cdas: %w", record.Id, err)
+			}
+
+			mergedBundles = append(mergedBundles, paymentBundle)
+
 		case "mevshare:v0:matchDataRecords":
 			// fetch the matched ids and merge the bundle
 			matchedBundleIdsBytes, err := b.suaveContext.Backend.ConfidentialStore.Retrieve(record.Id, buildEthBlockAddr, "mevshare:v0:mergedDataRecords")
