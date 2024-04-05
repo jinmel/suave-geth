@@ -23,6 +23,7 @@ import (
 	"math/big"
 	"time"
 
+	builderDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -43,6 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	suave_builder "github.com/ethereum/go-ethereum/suave/builder"
 	suave "github.com/ethereum/go-ethereum/suave/core"
 	"github.com/ethereum/go-ethereum/suave/cstore"
 	"github.com/flashbots/go-boost-utils/bls"
@@ -60,6 +62,7 @@ type EthAPIBackend struct {
 	suaveEthBackend          suave.ConfidentialEthBackend
 	suaveExternalWhitelist   []string
 	suaveDnsRegistry         map[string]string
+	suaveRelayService        *suave_builder.RelayService
 }
 
 // For testing purposes
@@ -449,6 +452,7 @@ func (b *EthAPIBackend) SuaveContext(requestTx *types.Transaction, ccr *types.Co
 			DnsRegistry:            b.suaveDnsRegistry,
 			ConfidentialStore:      storeTransaction,
 			ConfidentialEthBackend: b.suaveEthBackend,
+			LocalRelay:             b.eth.LocalRelay(),
 		},
 	}
 }
@@ -459,6 +463,10 @@ func (b *EthAPIBackend) BuildBlockFromTxs(ctx context.Context, buildArgs *suave.
 
 func (b *EthAPIBackend) BuildBlockFromBundles(ctx context.Context, buildArgs *suave.BuildBlockArgs, bundles []types.SBundle) (*types.Block, *big.Int, error) {
 	return b.eth.Miner().BuildBlockFromBundles(ctx, buildArgs, bundles)
+}
+
+func (b *EthAPIBackend) SubmitBlock(ctx context.Context, payload *builderDeneb.SubmitBlockRequest) error {
+	return b.eth.LocalRelay().SubmitBlock(ctx, payload)
 }
 
 func (b *EthAPIBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error) {

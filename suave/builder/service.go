@@ -7,12 +7,12 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type Service struct {
+type RelayService struct {
 	srv   *http.Server
 	relay *LocalRelay
 }
 
-func (s *Service) Start() error {
+func (s *RelayService) Start() error {
 	if s.srv != nil {
 		log.Info("Service started")
 		go s.srv.ListenAndServe()
@@ -23,7 +23,7 @@ func (s *Service) Start() error {
 	return nil
 }
 
-func (s *Service) Stop() error {
+func (s *RelayService) Stop() error {
 	if s.srv != nil {
 		s.srv.Close()
 	}
@@ -31,13 +31,13 @@ func (s *Service) Stop() error {
 	return nil
 }
 
-func NewService(listenAddr string, relay *LocalRelay) *Service {
+func NewRelayService(listenAddr string, relay *LocalRelay) *RelayService {
 	srv := &http.Server{
 		Addr:    listenAddr,
 		Handler: getRouter(relay),
 	}
 
-	return &Service{
+	return &RelayService{
 		srv:   srv,
 		relay: relay,
 	}
@@ -45,6 +45,6 @@ func NewService(listenAddr string, relay *LocalRelay) *Service {
 
 func getRouter(relay *LocalRelay) http.Handler {
 	handler := mux.NewRouter()
-	handler.HandleFunc("/eth/v1/builder/payload/{slot:[0-9]+}/{parent_hash}", relay.GetPayload).Methods("GET")
+	handler.HandleFunc("/eth/v1/builder/payload/{slot:[0-9]+}/{parentHash}", relay.GetPayload).Methods("GET")
 	return handler
 }

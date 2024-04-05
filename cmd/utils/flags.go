@@ -575,6 +575,13 @@ var (
 		Category: flags.SuaveCategory,
 	}
 
+	SuaveLocalRelayListenAddrFlag = &cli.StringFlag{
+		Name:     "suave.local-relay-addr",
+		EnvVars:  []string{"SUAVE_LOCAL_RELAY_ADDR"},
+		Usage:    "Local relay address to listen on",
+		Category: flags.SuaveCategory,
+	}
+
 	SuaveDevModeFlag = &cli.BoolFlag{
 		Name:     "suave.dev",
 		Usage:    "Dev mode for suave",
@@ -1770,6 +1777,10 @@ func SetSuaveConfig(ctx *cli.Context, stack *node.Node, cfg *suave.Config) {
 			// As of now, default to wildcard
 			cfg.ExternalWhitelist = []string{"*"}
 		}
+	}
+
+	if ctx.IsSet(SuaveLocalRelayListenAddrFlag.Name) {
+		cfg.LocalRelayListenAddress = ctx.String(SuaveLocalRelayListenAddrFlag.Name)
 	}
 }
 

@@ -107,6 +107,8 @@ type Ethereum struct {
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 
 	shutdownTracker *shutdowncheck.ShutdownTracker // Tracks if and when the node has shutdown ungracefully
+
+	localRelay *suave_builder.LocalRelay
 }
 
 // New creates a new Ethereum object (including the
@@ -289,8 +291,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	confidentialStoreEngine := cstore.NewEngine(confidentialStoreBackend, confidentialStoreTransport, suaveDaSigner, types.LatestSigner(chainConfig))
 
+	relayService := suave_builder.NewRelayService(config.Suave.LocalRelayListenAddress, suave_builder.NewLocalRelay())
+
 	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil,
-		suaveEthBundleSigningKey, suaveEthBlockSigningKey, confidentialStoreEngine, suaveEthBackend, config.Suave.ExternalWhitelist, config.Suave.DnsRegistry}
+		suaveEthBundleSigningKey, suaveEthBlockSigningKey, confidentialStoreEngine, suaveEthBackend, config.Suave.ExternalWhitelist, config.Suave.DnsRegistry, relayService}
 	if eth.APIBackend.allowUnprotectedTxs {
 		log.Info("Unprotected transactions allowed")
 	}
@@ -359,13 +363,6 @@ func (s *Ethereum) APIs() []rpc.API {
 	apis = append(apis, rpc.API{
 		Namespace: "suavex",
 		Service:   suave_builder_api.NewServer(sessionManager),
-	})
-
-	relay := suave_builder.NewLocalRelay()
-
-	apis = append(apis, rpc.API{
-		Namespace: "suavex",
-		Service:   suave_builder.NewService(":9062", relay),
 	})
 
 	// if in devnet test mode, enable the suave dev jsonrpc endpoint
@@ -536,8 +533,9 @@ func (s *Ethereum) StopMining() {
 	s.miner.Stop()
 }
 
-func (s *Ethereum) IsMining() bool      { return s.miner.Mining() }
-func (s *Ethereum) Miner() *miner.Miner { return s.miner }
+func (s *Ethereum) IsMining() bool                        { return s.miner.Mining() }
+func (s *Ethereum) Miner() *miner.Miner                   { return s.miner }
+func (s *Ethereum) LocalRelay() *suave_builder.LocalRelay { return s.localRelay }
 
 func (s *Ethereum) AccountManager() *accounts.Manager  { return s.accountManager }
 func (s *Ethereum) BlockChain() *core.BlockChain       { return s.blockchain }

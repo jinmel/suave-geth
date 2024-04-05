@@ -1,22 +1,21 @@
 package builder
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 
-	builderApi "github.com/attestantio/go-builder-client/api"
-	"github.com/attestantio/go-eth2-client/spec"
-	"github.com/attestantio/go-eth2-client/spec/bellatrix"
-	eth2UtilBellatrix "github.com/attestantio/go-eth2-client/util/bellatrix"
-	"github.com/ethereum/go-ethereum/log"
+	builderDeneb "github.com/attestantio/go-builder-client/api/deneb"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/gorilla/mux"
 )
 
 type LocalRelay struct {
 	lock    sync.Mutex
-	payload *bellatrix.ExecutionPayload
-	header  *bellatrix.ExecutionPayloadHeader
+	payload *builderDeneb.SubmitBlockRequest
 }
 
 func NewLocalRelay() *LocalRelay {
@@ -30,73 +29,43 @@ func (r *LocalRelay) Start() error {
 func (r *LocalRelay) Stop() {
 }
 
-func (r *LocalRelay) SubmitPayload(payload *bellatrix.ExecutionPayload) error {
-	header, err := PayloadToPayloadHeader(payload)
-	if err != nil {
-		log.Error("could not convert payload to header", "err", err)
-		return err
-	}
-
+func (r *LocalRelay) SubmitBlock(ctx context.Context, payload *builderDeneb.SubmitBlockRequest) error {
 	r.lock.Lock()
+	defer r.lock.Unlock()
 	r.payload = payload
-	r.header = header
-	r.lock.Unlock()
 
 	return nil
 }
 
-func PayloadToPayloadHeader(p *bellatrix.ExecutionPayload) (*bellatrix.ExecutionPayloadHeader, error) {
-	if p == nil {
-		return nil, errors.New("nil payload")
-	}
-
-	var txs []bellatrix.Transaction
-	txs = append(txs, p.Transactions...)
-
-	transactions := eth2UtilBellatrix.ExecutionPayloadTransactions{Transactions: txs}
-	txroot, err := transactions.HashTreeRoot()
-	if err != nil {
-		return nil, err
-	}
-
-	return &bellatrix.ExecutionPayloadHeader{
-		ParentHash:       p.ParentHash,
-		FeeRecipient:     p.FeeRecipient,
-		StateRoot:        p.StateRoot,
-		ReceiptsRoot:     p.ReceiptsRoot,
-		LogsBloom:        p.LogsBloom,
-		PrevRandao:       p.PrevRandao,
-		BlockNumber:      p.BlockNumber,
-		GasLimit:         p.GasLimit,
-		GasUsed:          p.GasUsed,
-		Timestamp:        p.Timestamp,
-		ExtraData:        p.ExtraData,
-		BaseFeePerGas:    p.BaseFeePerGas,
-		BlockHash:        p.BlockHash,
-		TransactionsRoot: txroot,
-	}, nil
-}
-
 func (r *LocalRelay) GetPayload(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+
+	slot, err := strconv.ParseUint(vars["slot"], 10, 64)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid slot")
+		return
+	}
+
+	parentHash := common.HexToHash(vars["parentHash"])
+
 	r.lock.Lock()
 	payload := r.payload
-	header := r.header
 	r.lock.Unlock()
 
-	if payload == nil || header == nil {
+	if payload == nil {
 		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	if slot != payload.ExecutionPayload.BlockNumber || parentHash != common.Hash(payload.ExecutionPayload.ParentHash) {
+		respondError(w, http.StatusNotFound, fmt.Sprintf("payload not found for slot %d and parent hash %s", slot, parentHash.String()))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	response := &builderApi.VersionedExecutionPayload{
-		Version:   spec.DataVersionBellatrix,
-		Bellatrix: payload,
-	}
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		respondError(w, http.StatusInternalServerError, "internal server error")
 		return
