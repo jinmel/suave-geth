@@ -361,6 +361,13 @@ func (s *Ethereum) APIs() []rpc.API {
 		Service:   suave_builder_api.NewServer(sessionManager),
 	})
 
+	relay := suave_builder.NewLocalRelay()
+
+	apis = append(apis, rpc.API{
+		Namespace: "suavex",
+		Service:   suave_builder.NewService(":9062", relay),
+	})
+
 	// if in devnet test mode, enable the suave dev jsonrpc endpoint
 	apis = append(apis, rpc.API{
 		Namespace: "suavey",
