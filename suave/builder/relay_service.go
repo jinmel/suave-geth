@@ -14,7 +14,7 @@ type RelayService struct {
 
 func (s *RelayService) Start() error {
 	if s.srv != nil {
-		log.Info("Service started")
+		log.Info("Relay Service started", "addr", s.srv.Addr)
 		go s.srv.ListenAndServe()
 	}
 

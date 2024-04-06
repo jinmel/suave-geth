@@ -10,6 +10,7 @@ import (
 
 	builderDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/gorilla/mux"
 )
 
@@ -48,16 +49,20 @@ func (r *LocalRelay) GetPayload(w http.ResponseWriter, req *http.Request) {
 
 	parentHash := common.HexToHash(vars["parentHash"])
 
+	log.Info("GetPayload requeset received", "slot", slot, "parentHash", parentHash.String())
+
 	r.lock.Lock()
 	payload := r.payload
 	r.lock.Unlock()
 
 	if payload == nil {
-		w.WriteHeader(http.StatusNoContent)
+		log.Info("Payload not ready", "slot", slot, "parentHash", parentHash.String())
+		respondError(w, http.StatusNotFound, "payload not found")
 		return
 	}
 
 	if slot != payload.ExecutionPayload.BlockNumber || parentHash != common.Hash(payload.ExecutionPayload.ParentHash) {
+		log.Info("Payload not found", "slot", slot, "parentHash", parentHash.String())
 		respondError(w, http.StatusNotFound, fmt.Sprintf("payload not found for slot %d and parent hash %s", slot, parentHash.String()))
 		return
 	}
@@ -66,6 +71,7 @@ func (r *LocalRelay) GetPayload(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		log.Info("Failed to encode payload", "slot", slot, "parentHash", parentHash.String())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		respondError(w, http.StatusInternalServerError, "internal server error")
 		return
