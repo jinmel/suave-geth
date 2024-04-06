@@ -49,7 +49,7 @@ func (r *LocalRelay) GetPayload(w http.ResponseWriter, req *http.Request) {
 
 	parentHash := common.HexToHash(vars["parentHash"])
 
-	log.Info("GetPayload requeset received", "slot", slot, "parentHash", parentHash.String())
+	log.Info("GetPayload request received", "slot", slot, "parentHash", parentHash.String())
 
 	r.lock.Lock()
 	payload := r.payload
@@ -70,6 +70,7 @@ func (r *LocalRelay) GetPayload(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
+	log.Info("Sending payload", "slot", slot, "parentHash", parentHash.String(), "payload", payload)
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		log.Info("Failed to encode payload", "slot", slot, "parentHash", parentHash.String())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
