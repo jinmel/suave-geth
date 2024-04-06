@@ -294,7 +294,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	relayService := suave_builder.NewRelayService(config.Suave.LocalRelayListenAddress, suave_builder.NewLocalRelay())
 
 	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil,
-		suaveEthBundleSigningKey, suaveEthBlockSigningKey, confidentialStoreEngine, suaveEthBackend, config.Suave.ExternalWhitelist, config.Suave.DnsRegistry, relayService}
+		suaveEthBundleSigningKey, suaveEthBlockSigningKey, confidentialStoreEngine, suaveEthBackend, config.Suave.ExternalWhitelist, config.Suave.AliasRegistry, relayService}
 	if eth.APIBackend.allowUnprotectedTxs {
 		log.Info("Unprotected transactions allowed")
 	}

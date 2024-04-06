@@ -1168,9 +1168,13 @@ func TestE2EOnChainStateTransition(t *testing.T) {
 	contractAddr := common.Address{0x3}
 	sourceContract := sdk.GetContract(contractAddr, exampleCallSourceContract.Abi, clt)
 
-	// a confidential request cannot make a state change
+	// a confidential request cannot make a state change in the Suapp
 	_, err := sourceContract.SendTransaction("ilegalStateTransition", []interface{}{}, nil)
 	require.Error(t, err)
+
+	// a confidential request can create a new "temporal" contract and change the state there
+	_, err = sourceContract.SendTransaction("offchainCreateNewContract", []interface{}{}, nil)
+	require.NoError(t, err)
 }
 
 func TestE2EConsoleLog(t *testing.T) {
@@ -1366,6 +1370,43 @@ func TestE2E_Precompile_RandomBytes(t *testing.T) {
 	require.Len(t, res[0], 64)
 }
 
+func TestE2E_EmptyAddress(t *testing.T) {
+	// it should not be possible to make a CCR to an empty address
+	fr := newFramework(t)
+	defer fr.Close()
+
+	clt := fr.NewSDKClient()
+
+	// 0xa contract does not exist
+	contractAddr := common.Address{0xa}
+	sourceContract := sdk.GetContract(contractAddr, exampleCallSourceContract.Abi, clt)
+
+	_, err := sourceContract.SendTransaction("consoleLog", []interface{}{}, nil)
+	require.Error(t, err)
+}
+
+func TestE2E_PrecompileInternalError(t *testing.T) {
+	// if the precompile fails, return a more informative error
+	fr := newFramework(t)
+	defer fr.Close()
+
+	clt := fr.NewSDKClient()
+
+	contractAddr := common.Address{0x3}
+	contract := sdk.GetContract(contractAddr, exampleCallSourceContract.Abi, clt)
+
+	req := &types.HttpRequest{
+		Method: "GET",
+		Url:    "sepolia",
+	}
+	_, err := contract.SendTransaction("remoteCall", []interface{}{req}, nil)
+	require.Error(t, err)
+
+	if !strings.Contains(err.Error(), `precompile '0x0000000000000000000000000000000043200002' reverted`) {
+		t.Fatal("bad")
+	}
+}
+
 type clientWrapper struct {
 	t *testing.T
 
@@ -1471,7 +1512,7 @@ func WithWhitelist(whitelist []string) frameworkOpt {
 
 func WithDnsRegistry(registry map[string]string) frameworkOpt {
 	return func(c *frameworkConfig) {
-		c.suaveConfig.DnsRegistry = registry
+		c.suaveConfig.AliasRegistry = registry
 	}
 }
 

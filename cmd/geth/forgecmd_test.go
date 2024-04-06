@@ -27,25 +27,41 @@ func TestForgeReadConfig(t *testing.T) {
 
 	ctx := cli.NewContext(nil, flagSet(t, forgeCommand.Flags), nil)
 
-	// read context from config toml file
-	ctx.Set("config", "./testdata/forge.toml")
+	// read context from non-existent config file
+	ctx.Set("config", "./testdata/forge_not_exists.toml")
+
+	_, err := readContext(ctx)
+	require.Error(t, err)
+
+	// read context from valid config toml file WITHOUT suave section
+	// it should fallback to the default values
+	ctx.Set("config", "./testdata/forge_noconfig.toml")
 
 	sCtx, err := readContext(ctx)
 	require.NoError(t, err)
-	require.Equal(t, sCtx.Backend.ExternalWhitelist, []string{"a", "b"})
-	require.Equal(t, sCtx.Backend.DnsRegistry, map[string]string{"a": "b", "c": "d"})
-	require.Equal(t, sCtx.Backend.ConfidentialEthBackend.(*suave_backends.RemoteEthBackend).Endpoint(), "suave")
+
+	require.Len(t, sCtx.Backend.ExternalWhitelist, 0)
+	require.Len(t, sCtx.Backend.ServiceAliasRegistry, 0)
+
+	// read context from config toml file
+	ctx.Set("config", "./testdata/forge.toml")
+
+	sCtx, err = readContext(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []string{"a", "b"}, sCtx.Backend.ExternalWhitelist)
+	require.Equal(t, map[string]string{"a": "b", "c": "d"}, sCtx.Backend.ServiceAliasRegistry)
+	require.Equal(t, "suave", sCtx.Backend.ConfidentialEthBackend.(*suave_backends.RemoteEthBackend).Endpoint())
 
 	// override the config if the flags are set
 	ctx.Set("eth-backend", "http://localhost:8545")
 	ctx.Set("whitelist", "c,d")
-	ctx.Set("dns-registry", "e=f,g=h")
+	ctx.Set("service-alias", "e=f,g=h")
 
 	sCtx, err = readContext(ctx)
 	require.NoError(t, err)
-	require.Equal(t, sCtx.Backend.ExternalWhitelist, []string{"c", "d"})
-	require.Equal(t, sCtx.Backend.DnsRegistry, map[string]string{"e": "f", "g": "h"})
-	require.Equal(t, sCtx.Backend.ConfidentialEthBackend.(*suave_backends.RemoteEthBackend).Endpoint(), "http://localhost:8545")
+	require.Equal(t, []string{"c", "d"}, sCtx.Backend.ExternalWhitelist)
+	require.Equal(t, map[string]string{"e": "f", "g": "h"}, sCtx.Backend.ServiceAliasRegistry)
+	require.Equal(t, "http://localhost:8545", sCtx.Backend.ConfidentialEthBackend.(*suave_backends.RemoteEthBackend).Endpoint())
 
 	// set flags to null and use default values
 	ctx = cli.NewContext(nil, flagSet(t, forgeCommand.Flags), nil)
