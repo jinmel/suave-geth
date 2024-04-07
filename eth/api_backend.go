@@ -44,7 +44,6 @@ import (
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
-	suave_builder "github.com/ethereum/go-ethereum/suave/builder"
 	suave "github.com/ethereum/go-ethereum/suave/core"
 	"github.com/ethereum/go-ethereum/suave/cstore"
 	"github.com/flashbots/go-boost-utils/bls"
@@ -62,7 +61,6 @@ type EthAPIBackend struct {
 	suaveEthBackend           suave.ConfidentialEthBackend
 	suaveExternalWhitelist    []string
 	suaveServiceAliasRegistry map[string]string
-	suaveRelayService         *suave_builder.RelayService
 }
 
 // For testing purposes

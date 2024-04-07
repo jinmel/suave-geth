@@ -15,7 +15,7 @@ import (
 )
 
 type LocalRelay struct {
-	lock    sync.Mutex
+	mu      sync.RWMutex
 	payload *builderDeneb.SubmitBlockRequest
 }
 
@@ -31,8 +31,9 @@ func (r *LocalRelay) Stop() {
 }
 
 func (r *LocalRelay) SubmitBlock(ctx context.Context, payload *builderDeneb.SubmitBlockRequest) error {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+	r.mu.Lock()
+	log.Info("payload submitted", "payload", payload.ExecutionPayload, "blockHash", payload.ExecutionPayload.BlockHash)
+	defer r.mu.Unlock()
 	r.payload = payload
 
 	return nil
@@ -51,9 +52,9 @@ func (r *LocalRelay) GetPayload(w http.ResponseWriter, req *http.Request) {
 
 	log.Info("GetPayload request received", "slot", slot, "parentHash", parentHash.String())
 
-	r.lock.Lock()
+	r.mu.RLock()
 	payload := r.payload
-	r.lock.Unlock()
+	r.mu.RUnlock()
 
 	if payload == nil {
 		log.Info("Payload not ready", "slot", slot, "parentHash", parentHash.String())
@@ -62,7 +63,7 @@ func (r *LocalRelay) GetPayload(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if slot != payload.ExecutionPayload.BlockNumber || parentHash != common.Hash(payload.ExecutionPayload.ParentHash) {
-		log.Info("Payload not found", "slot", slot, "parentHash", parentHash.String())
+		log.Info("Payload not found", "slot", slot, "parentHash", parentHash.String(), "stored_slot", payload.ExecutionPayload.BlockNumber, "stored_parentHash", payload.ExecutionPayload.ParentHash)
 		respondError(w, http.StatusNotFound, fmt.Sprintf("payload not found for slot %d and parent hash %s", slot, parentHash.String()))
 		return
 	}

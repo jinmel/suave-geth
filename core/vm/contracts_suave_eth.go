@@ -304,7 +304,7 @@ func (b *suaveRuntime) privateKeyGen(cryptoType types.CryptoSignature) (string, 
 
 func (b *suaveRuntime) submitEthBlockToRelay(relayUrl string, builderDataRecordJson []byte) ([]byte, error) {
 	if relayUrl == "local" {
-		log.Info("submitting block to local relay")
+		log.Info("submitting block to local relay", "localRelay", b.suaveContext.Backend.LocalRelay)
 		var builderBid builderDeneb.SubmitBlockRequest
 		err := builderBid.UnmarshalJSON(builderDataRecordJson)
 		if err != nil {

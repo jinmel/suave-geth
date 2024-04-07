@@ -153,6 +153,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	localRelay := suave_builder.NewLocalRelay()
 	eth := &Ethereum{
 		config:            config,
 		merger:            consensus.NewMerger(chainDb),
@@ -168,6 +170,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		bloomIndexer:      core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 		p2pServer:         stack.Server(),
 		shutdownTracker:   shutdowncheck.NewShutdownTracker(chainDb),
+		localRelay:        localRelay,
 	}
 
 	bcVersion := rawdb.ReadDatabaseVersion(chainDb)
@@ -291,10 +294,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	confidentialStoreEngine := cstore.NewEngine(confidentialStoreBackend, confidentialStoreTransport, suaveDaSigner, types.LatestSigner(chainConfig))
 
-	relayService := suave_builder.NewRelayService(config.Suave.LocalRelayListenAddress, suave_builder.NewLocalRelay())
+	relayService := suave_builder.NewRelayService(config.Suave.LocalRelayListenAddress, localRelay)
 
 	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil,
-		suaveEthBundleSigningKey, suaveEthBlockSigningKey, confidentialStoreEngine, suaveEthBackend, config.Suave.ExternalWhitelist, config.Suave.AliasRegistry, relayService}
+		suaveEthBundleSigningKey, suaveEthBlockSigningKey, confidentialStoreEngine, suaveEthBackend, config.Suave.ExternalWhitelist, config.Suave.AliasRegistry}
 	if eth.APIBackend.allowUnprotectedTxs {
 		log.Info("Unprotected transactions allowed")
 	}
