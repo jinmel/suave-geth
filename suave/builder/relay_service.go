@@ -27,7 +27,10 @@ func (s *RelayService) Stop() error {
 	if s.srv != nil {
 		s.srv.Close()
 	}
-	s.relay.Stop()
+
+	if s.relay != nil {
+		s.relay.Stop()
+	}
 	return nil
 }
 
