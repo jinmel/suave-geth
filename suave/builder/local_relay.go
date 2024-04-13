@@ -32,7 +32,7 @@ func (r *LocalRelay) Stop() {
 
 func (r *LocalRelay) SubmitBlock(ctx context.Context, payload *builderDeneb.SubmitBlockRequest) error {
 	r.mu.Lock()
-	log.Info("payload submitted", "payload", payload.ExecutionPayload, "blockHash", payload.ExecutionPayload.BlockHash)
+	fmt.Printf("\033[32m SubmitBlock payload %+v blockHash %s \033[0m\n", payload.ExecutionPayload, payload.ExecutionPayload.BlockHash)
 	defer r.mu.Unlock()
 	r.payload = payload
 
@@ -50,20 +50,20 @@ func (r *LocalRelay) GetPayload(w http.ResponseWriter, req *http.Request) {
 
 	parentHash := common.HexToHash(vars["parentHash"])
 
-	log.Info("GetPayload request received", "slot", slot, "parentHash", parentHash.String())
+	fmt.Printf("\033[32mGetPayload request received slot: %d parentHash: %s\033[0m\n", slot, parentHash.String())
 
 	r.mu.RLock()
 	payload := r.payload
 	r.mu.RUnlock()
 
 	if payload == nil {
-		log.Info("Payload not ready", "slot", slot, "parentHash", parentHash.String())
+		fmt.Printf("\033[31mPayload not ready slot: %d parentHash %s\033[0m\n", slot, parentHash.String())
 		respondError(w, http.StatusNotFound, "payload not found")
 		return
 	}
 
 	if slot != payload.ExecutionPayload.BlockNumber || parentHash != common.Hash(payload.ExecutionPayload.ParentHash) {
-		log.Info("Payload not found", "slot", slot, "parentHash", parentHash.String(), "stored_slot", payload.ExecutionPayload.BlockNumber, "stored_parentHash", payload.ExecutionPayload.ParentHash)
+		fmt.Printf("\033[31mPayload not found slot: %d parentHash %s \033[0m\n", slot, parentHash.String())
 		respondError(w, http.StatusNotFound, fmt.Sprintf("payload not found for slot %d and parent hash %s", slot, parentHash.String()))
 		return
 	}
@@ -71,7 +71,7 @@ func (r *LocalRelay) GetPayload(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	log.Info("Sending payload", "slot", slot, "parentHash", parentHash.String(), "payload", payload)
+	fmt.Printf("\033[32mSending payload slot: %d parentHash: %s payload %+v\033[0m\n", slot, parentHash.String(), payload.ExecutionPayload)
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		log.Info("Failed to encode payload", "slot", slot, "parentHash", parentHash.String())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
