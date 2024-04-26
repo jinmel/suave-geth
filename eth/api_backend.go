@@ -23,6 +23,7 @@ import (
 	"math/big"
 	"time"
 
+	builderDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -449,6 +450,7 @@ func (b *EthAPIBackend) SuaveContext(requestTx *types.Transaction, ccr *types.Co
 			ServiceAliasRegistry:   b.suaveServiceAliasRegistry,
 			ConfidentialStore:      storeTransaction,
 			ConfidentialEthBackend: b.suaveEthBackend,
+			LocalRelay:             b.eth.LocalRelay(),
 		},
 	}
 }
@@ -459,6 +461,10 @@ func (b *EthAPIBackend) BuildBlockFromTxs(ctx context.Context, buildArgs *suave.
 
 func (b *EthAPIBackend) BuildBlockFromBundles(ctx context.Context, buildArgs *suave.BuildBlockArgs, bundles []types.SBundle) (*types.Block, *big.Int, error) {
 	return b.eth.Miner().BuildBlockFromBundles(ctx, buildArgs, bundles)
+}
+
+func (b *EthAPIBackend) SubmitBlock(ctx context.Context, payload *builderDeneb.SubmitBlockRequest) error {
+	return b.eth.LocalRelay().SubmitBlock(ctx, payload)
 }
 
 func (b *EthAPIBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error) {

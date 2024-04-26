@@ -162,11 +162,11 @@ func ActivePrecompiles(rules params.Rules) []common.Address {
 // - any error that occurred
 func RunPrecompiledContract(p PrecompiledContract, input []byte, suppliedGas uint64) (ret []byte, remainingGas uint64, err error) {
 	// TODO: it'd be nice if the confidential contracts' exact gas usage was calculated with execution
-	gasCost := p.RequiredGas(input)
-	if suppliedGas < gasCost {
-		return nil, 0, ErrOutOfGas
-	}
-	suppliedGas -= gasCost
+	// gasCost := p.RequiredGas(input)
+	// if suppliedGas < gasCost {
+	// 	return nil, 0, ErrOutOfGas
+	// }
+	// suppliedGas -= gasCost
 	output, err := p.Run(input)
 	return output, suppliedGas, err
 }

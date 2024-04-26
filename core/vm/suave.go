@@ -1,10 +1,12 @@
 package vm
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"time"
 
+	builderDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -32,6 +34,10 @@ type SuaveContext struct {
 	CallerStack []*common.Address
 }
 
+type IRelay interface {
+	SubmitBlock(ctx context.Context, payload *builderDeneb.SubmitBlockRequest) error
+}
+
 type SuaveExecutionBackend struct {
 	EthBundleSigningKey    *ecdsa.PrivateKey
 	EthBlockSigningKey     *bls.SecretKey
@@ -39,6 +45,7 @@ type SuaveExecutionBackend struct {
 	ServiceAliasRegistry   map[string]string
 	ConfidentialStore      ConfidentialStore
 	ConfidentialEthBackend suave.ConfidentialEthBackend
+	LocalRelay             IRelay
 }
 
 func NewRuntimeSuaveContext(evm *EVM, caller common.Address) *SuaveContext {

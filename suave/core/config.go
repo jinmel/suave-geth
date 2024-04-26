@@ -9,6 +9,7 @@ type Config struct {
 	EthBlockSigningKeyHex         string
 	ExternalWhitelist             []string
 	AliasRegistry                 map[string]string
+	LocalRelayListenAddress       string // OP PoC
 }
 
 var DefaultConfig = Config{}

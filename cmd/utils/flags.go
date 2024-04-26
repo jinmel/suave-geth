@@ -575,6 +575,13 @@ var (
 		Category: flags.SuaveCategory,
 	}
 
+	SuaveLocalRelayListenAddrFlag = &cli.StringFlag{
+		Name:     "suave.local-relay-addr",
+		EnvVars:  []string{"SUAVE_LOCAL_RELAY_ADDR"},
+		Usage:    "Local relay address to listen on",
+		Category: flags.SuaveCategory,
+	}
+
 	SuaveDevModeFlag = &cli.BoolFlag{
 		Name:     "suave.dev",
 		Usage:    "Dev mode for suave",
@@ -1771,6 +1778,10 @@ func SetSuaveConfig(ctx *cli.Context, stack *node.Node, cfg *suave.Config) {
 			cfg.ExternalWhitelist = []string{"*"}
 		}
 	}
+
+	if ctx.IsSet(SuaveLocalRelayListenAddrFlag.Name) {
+		cfg.LocalRelayListenAddress = ctx.String(SuaveLocalRelayListenAddrFlag.Name)
+	}
 }
 
 var (
@@ -2006,6 +2017,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 
 		// Create a new developer genesis block or reuse existing one
 		cfg.Genesis = core.DeveloperGenesisBlock(uint64(ctx.Int(DeveloperPeriodFlag.Name)), ctx.Uint64(DeveloperGasLimitFlag.Name), developer.Address)
+		log.Info("Genesis", "gaslimit", cfg.Genesis.GasLimit)
 		if ctx.IsSet(DataDirFlag.Name) {
 			// If datadir doesn't exist we need to open db in write-mode
 			// so leveldb can create files.

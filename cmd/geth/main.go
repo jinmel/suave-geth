@@ -200,6 +200,7 @@ var (
 		utils.SuaveEthBlockSigningKeyFlag,
 		utils.SuaveExternalWhitelistFlag,
 		utils.SuaveDevModeFlag,
+		utils.SuaveLocalRelayListenAddrFlag,
 	}
 )
 

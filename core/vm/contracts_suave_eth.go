@@ -218,8 +218,6 @@ func (b *suaveRuntime) buildEthBlock(blockArgs types.BuildBlockArgs, dataID type
 		return nil, nil, fmt.Errorf("could not build eth block: %w", err)
 	}
 
-	log.Info("built block from bundles", "payload", *envelope.ExecutionPayload)
-
 	payload, err := executableDataToDenebExecutionPayload(envelope.ExecutionPayload)
 	if err != nil {
 		log.Warn("failed to generate execution payload from executable data",
@@ -303,6 +301,17 @@ func (b *suaveRuntime) privateKeyGen(cryptoType types.CryptoSignature) (string, 
 }
 
 func (b *suaveRuntime) submitEthBlockToRelay(relayUrl string, builderDataRecordJson []byte) ([]byte, error) {
+	if relayUrl == "local" {
+		log.Info("submitting block to local relay", "localRelay", b.suaveContext.Backend.LocalRelay)
+		var builderBid builderDeneb.SubmitBlockRequest
+		err := builderBid.UnmarshalJSON(builderDataRecordJson)
+		if err != nil {
+			return nil, err
+		}
+		b.suaveContext.Backend.LocalRelay.SubmitBlock(context.Background(), &builderBid)
+		return nil, nil
+	}
+
 	endpoint := relayUrl + "/relay/v1/builder/blocks"
 
 	httpReq := types.HttpRequest{

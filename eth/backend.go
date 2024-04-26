@@ -107,6 +107,8 @@ type Ethereum struct {
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 
 	shutdownTracker *shutdowncheck.ShutdownTracker // Tracks if and when the node has shutdown ungracefully
+
+	localRelay *suave_builder.LocalRelay
 }
 
 // New creates a new Ethereum object (including the
@@ -151,6 +153,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	localRelay := suave_builder.NewLocalRelay()
 	eth := &Ethereum{
 		config:            config,
 		merger:            consensus.NewMerger(chainDb),
@@ -166,6 +170,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		bloomIndexer:      core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 		p2pServer:         stack.Server(),
 		shutdownTracker:   shutdowncheck.NewShutdownTracker(chainDb),
+		localRelay:        localRelay,
 	}
 
 	bcVersion := rawdb.ReadDatabaseVersion(chainDb)
@@ -289,6 +294,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	confidentialStoreEngine := cstore.NewEngine(confidentialStoreBackend, confidentialStoreTransport, suaveDaSigner, types.LatestSigner(chainConfig))
 
+	relayService := suave_builder.NewRelayService(config.Suave.LocalRelayListenAddress, localRelay)
+
 	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil,
 		suaveEthBundleSigningKey, suaveEthBlockSigningKey, confidentialStoreEngine, suaveEthBackend, config.Suave.ExternalWhitelist, config.Suave.AliasRegistry}
 	if eth.APIBackend.allowUnprotectedTxs {
@@ -319,6 +326,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	stack.RegisterProtocols(eth.Protocols())
 	stack.RegisterLifecycle(eth)
 	stack.RegisterLifecycle(confidentialStoreEngine)
+	stack.RegisterLifecycle(relayService)
 
 	// Successful startup; push a marker and check previous unclean shutdowns.
 	eth.shutdownTracker.MarkStartup()
@@ -529,8 +537,9 @@ func (s *Ethereum) StopMining() {
 	s.miner.Stop()
 }
 
-func (s *Ethereum) IsMining() bool      { return s.miner.Mining() }
-func (s *Ethereum) Miner() *miner.Miner { return s.miner }
+func (s *Ethereum) IsMining() bool                        { return s.miner.Mining() }
+func (s *Ethereum) Miner() *miner.Miner                   { return s.miner }
+func (s *Ethereum) LocalRelay() *suave_builder.LocalRelay { return s.localRelay }
 
 func (s *Ethereum) AccountManager() *accounts.Manager  { return s.accountManager }
 func (s *Ethereum) BlockChain() *core.BlockChain       { return s.blockchain }
