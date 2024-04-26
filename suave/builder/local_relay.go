@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"sync"
 
 	builderDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	"github.com/ethereum/go-ethereum/common"
@@ -15,7 +14,6 @@ import (
 )
 
 type LocalRelay struct {
-	mu      sync.RWMutex
 	payload *builderDeneb.SubmitBlockRequest
 }
 
@@ -31,11 +29,14 @@ func (r *LocalRelay) Stop() {
 }
 
 func (r *LocalRelay) SubmitBlock(ctx context.Context, payload *builderDeneb.SubmitBlockRequest) error {
-	r.mu.Lock()
-	fmt.Printf("\033[32m SubmitBlock payload %+v blockHash %s \033[0m\n", payload.ExecutionPayload, payload.ExecutionPayload.BlockHash)
-	defer r.mu.Unlock()
-	r.payload = payload
+	log.Info("SubmitBlock payload", "slot", payload.ExecutionPayload.BlockNumber, "hash", payload.ExecutionPayload.BlockHash)
 
+	if r.payload != nil && r.payload.ExecutionPayload.BlockNumber > payload.ExecutionPayload.BlockNumber {
+		log.Error("Payload already exists or slot is lower than current slot", "currentSlot", r.payload.ExecutionPayload.BlockNumber, "requestedSlot", payload.ExecutionPayload.BlockNumber)
+		return fmt.Errorf("payload already exists")
+	}
+
+	r.payload = payload
 	return nil
 }
 
@@ -50,28 +51,19 @@ func (r *LocalRelay) GetPayload(w http.ResponseWriter, req *http.Request) {
 
 	parentHash := common.HexToHash(vars["parentHash"])
 
-	fmt.Printf("\033[32mGetPayload request received slot: %d parentHash: %s\033[0m\n", slot, parentHash.String())
+	log.Info("GetPayload request received slot: %d parentHash: %s\n", slot, parentHash.String())
 
-	r.mu.RLock()
 	payload := r.payload
-	r.mu.RUnlock()
 
-	if payload == nil {
-		fmt.Printf("\033[31mPayload not ready slot: %d parentHash %s\033[0m\n", slot, parentHash.String())
-		respondError(w, http.StatusNotFound, "payload not found")
-		return
-	}
-
-	if slot != payload.ExecutionPayload.BlockNumber || parentHash != common.Hash(payload.ExecutionPayload.ParentHash) {
-		fmt.Printf("\033[31mPayload not found slot: %d parentHash %s \033[0m\n", slot, parentHash.String())
-		respondError(w, http.StatusNotFound, fmt.Sprintf("payload not found for slot %d and parent hash %s", slot, parentHash.String()))
+	if parentHash != common.Hash(payload.ExecutionPayload.ParentHash) || slot != payload.ExecutionPayload.BlockNumber {
+		log.Error("Requested Payload does not exist", "slot", slot, "parentHash", parentHash.String())
+		respondError(w, http.StatusNotFound, fmt.Sprintf("payload not found for slot %d and parent hash %s current slot %d current hash %s", slot, parentHash.String(), payload.ExecutionPayload.BlockNumber, payload.ExecutionPayload.ParentHash.String()))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	fmt.Printf("\033[32mSending payload slot: %d parentHash: %s payload %+v\033[0m\n", slot, parentHash.String(), payload.ExecutionPayload)
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		log.Info("Failed to encode payload", "slot", slot, "parentHash", parentHash.String())
 		http.Error(w, err.Error(), http.StatusInternalServerError)

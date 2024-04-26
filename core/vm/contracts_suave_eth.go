@@ -218,8 +218,6 @@ func (b *suaveRuntime) buildEthBlock(blockArgs types.BuildBlockArgs, dataID type
 		return nil, nil, fmt.Errorf("could not build eth block: %w", err)
 	}
 
-	log.Info("built block from bundles", "payload", *envelope.ExecutionPayload)
-
 	payload, err := executableDataToDenebExecutionPayload(envelope.ExecutionPayload)
 	if err != nil {
 		log.Warn("failed to generate execution payload from executable data",
